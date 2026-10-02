@@ -37,8 +37,25 @@ public class DatabaseSeeder implements CommandLineRunner {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
     @Override
     public void run(String... args) throws Exception {
+        try {
+            jdbcTemplate.execute("ALTER TABLE trips ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ACTIVE'");
+            jdbcTemplate.execute("UPDATE trips SET status = 'ACTIVE' WHERE status IS NULL");
+            jdbcTemplate.execute("UPDATE users SET full_name = 'Guest User' WHERE full_name = 'Anusri Kommana'");
+            jdbcTemplate.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_language VARCHAR(50) DEFAULT 'English'");
+            jdbcTemplate.execute("ALTER TABLE preference_profiles ADD COLUMN IF NOT EXISTS travel_style VARCHAR(50) DEFAULT 'FAMILY'");
+            jdbcTemplate.execute("ALTER TABLE preference_profiles ADD COLUMN IF NOT EXISTS has_kids BOOLEAN DEFAULT FALSE");
+            jdbcTemplate.execute("ALTER TABLE preference_profiles ADD COLUMN IF NOT EXISTS has_senior_citizens BOOLEAN DEFAULT FALSE");
+            jdbcTemplate.execute("ALTER TABLE preference_profiles ADD COLUMN IF NOT EXISTS vehicle_type VARCHAR(50) DEFAULT 'PUBLIC_TRANSPORT'");
+            jdbcTemplate.execute("ALTER TABLE preference_profiles ADD COLUMN IF NOT EXISTS traveler_count INT DEFAULT 2");
+        } catch (Exception e) {
+            // Log and ignore if table doesn't exist yet (Hibernate will create)
+        }
+
         if (userRepository.count() > 0) {
             return; // DB already seeded
         }
@@ -47,7 +64,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         User guest = User.builder()
                 .email("guest@example.com")
                 .password(passwordEncoder.encode("password"))
-                .fullName("Anusri Kommana")
+                .fullName("Guest User")
                 .phone("+91 98765 43210")
                 .role(Role.GUEST)
                 .build();

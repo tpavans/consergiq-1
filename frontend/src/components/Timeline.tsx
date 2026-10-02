@@ -1,5 +1,5 @@
 import React from 'react'
-import { MapPin, Utensils, Sparkles, BedDouble, Calendar, ArrowRight } from 'lucide-react'
+import { MapPin, Utensils, Sparkles, BedDouble, Calendar, CheckCircle2, Circle, ShieldCheck, Star } from 'lucide-react'
 
 interface Activity {
   id?: number
@@ -11,9 +11,10 @@ interface Activity {
 
 interface TimelineProps {
   activities?: Activity[]
+  onToggleStatus?: (activityId: number, currentStatus: string) => void
 }
 
-export default function Timeline({ activities = [] }: TimelineProps) {
+export default function Timeline({ activities = [], onToggleStatus }: TimelineProps) {
 
   const getActivityIcon = (type: string) => {
     switch (type.toUpperCase()) {
@@ -36,59 +37,126 @@ export default function Timeline({ activities = [] }: TimelineProps) {
   }
 
   const defaultActivities: Activity[] = [
-    { time: '09:00 AM', name: 'Breakfast at The Sea View Resort', type: 'HOTEL', status: 'Confirmed' },
-    { time: '10:30 AM', name: 'Explore Fort Aguada Lighthouse', type: 'ATTRACTION', status: 'Confirmed' },
-    { time: '01:00 PM', name: 'Seafood Lunch at Fisherman\'s Wharf', type: 'RESTAURANT', status: 'Confirmed' },
-    { time: '03:30 PM', name: 'Spice Garden Walk & Tasting Tour', type: 'ATTRACTION', status: 'Confirmed' },
-    { time: '06:30 PM', name: 'Coastal Sunset Cruise Party', type: 'EVENT', status: 'Confirmed' },
-    { time: '08:30 PM', name: 'Candlelight Dinner at Seaside Grill', type: 'RESTAURANT', status: 'Confirmed' }
+    { id: 1, time: '09:00 AM', name: 'Breakfast at Hotel Shelton Fine Dining', type: 'HOTEL', status: 'COMPLETED' },
+    { id: 2, time: '10:30 AM', name: 'Godavari Arch Bridge & Pushkar Ghat Walk', type: 'ATTRACTION', status: 'COMPLETED' },
+    { id: 3, time: '01:00 PM', name: 'Traditional Andhra Meals at Sri Kanya Comfort', type: 'RESTAURANT', status: 'PLANNED' },
+    { id: 4, time: '03:30 PM', name: 'Kadiyapulanka Flora Nursery Tour', type: 'ATTRACTION', status: 'PLANNED' },
+    { id: 5, time: '06:30 PM', name: 'Godavari River Sunset Boat Cruise', type: 'EVENT', status: 'PLANNED' },
+    { id: 6, time: '08:30 PM', name: 'Movie at Sree Satyadeva Multiplex', type: 'EVENT', status: 'PLANNED' }
   ]
 
   const items = activities.length > 0 ? activities : defaultActivities
 
+  // Calculate To-Do Progress Percentage
+  const completedCount = items.filter(a => (a.status || 'PLANNED').toUpperCase() === 'COMPLETED').length
+  const progressPercent = Math.round((completedCount / (items.length || 1)) * 100)
+
   return (
-    <div className="relative border-l border-gray-200 dark:border-darkBorder ml-4 pl-6 space-y-8 py-2">
-      {items.map((activity, index) => {
-        const name = activity.name || (activity as any).activityName || 'Activity'
-        const time = activity.time || (activity as any).scheduledTime || '12:00 PM'
-        const type = activity.type || (activity as any).activityType || 'ATTRACTION'
-        const status = activity.status || (activity as any).status
+    <div className="flex flex-col gap-5">
+      {/* Real-time To-Do List Progress Bar */}
+      <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-darkBorder rounded-xl p-4 shadow-sm flex flex-col gap-2">
+        <div className="flex justify-between items-center text-xs">
+          <span className="font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
+            <CheckCircle2 size={16} className="text-emerald-500" />
+            To-Do Itinerary Progress
+          </span>
+          <span className="font-extrabold text-indigo-600 dark:text-brand-400">
+            {completedCount} of {items.length} Completed ({progressPercent}%)
+          </span>
+        </div>
+        <div className="w-full bg-gray-100 dark:bg-zinc-800 rounded-full h-2 overflow-hidden">
+          <div 
+            className="bg-gradient-to-r from-emerald-500 to-indigo-600 h-full rounded-full transition-all duration-500"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      </div>
 
-        return (
-          <div key={index} className="relative group">
-            {/* Bullet Pin */}
-            <div className={`absolute left-[-35px] top-1.5 p-2 rounded-full border border-white dark:border-darkBg shadow-md flex items-center justify-center transition-transform group-hover:scale-110 ${getThemeColors(type)}`}>
-              {getActivityIcon(type)}
-            </div>
+      {/* Hourly Timeline List */}
+      <div className="relative border-l-2 border-indigo-100 dark:border-zinc-800 ml-4 pl-6 space-y-6 py-1">
+        {items.map((activity, index) => {
+          const actId = activity.id || (activity as any).id || (index + 1)
+          const name = activity.name || (activity as any).activityName || 'Activity'
+          const time = activity.time || (activity as any).scheduledTime || '12:00 PM'
+          const type = activity.type || (activity as any).activityType || 'ATTRACTION'
+          const status = (activity.status || (activity as any).status || 'PLANNED').toUpperCase()
+          const isCompleted = status === 'COMPLETED'
 
-            {/* Time & Title Container */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-darkBorder p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-bold text-indigo-600 dark:text-brand-400 tracking-wider">
-                  {time}
-                </span>
-                <h4 className="font-bold text-sm text-gray-800 dark:text-gray-100">
-                  {name}
-                </h4>
-                <span className="text-[10px] uppercase font-bold tracking-wider opacity-65">
-                  {type.toLowerCase()}
-                </span>
+          return (
+            <div key={index} className="relative group">
+              {/* Bullet Pin */}
+              <div className={`absolute left-[-35px] top-2 p-2 rounded-full border-2 border-white dark:border-darkBg shadow-md flex items-center justify-center transition-transform group-hover:scale-110 ${getThemeColors(type)}`}>
+                {getActivityIcon(type)}
               </div>
 
-              <div className="flex gap-2 self-end sm:self-center">
-                {status && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300">
-                    {status}
-                  </span>
-                )}
-                <button className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-brand-400 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
-                  <ArrowRight size={14} />
-                </button>
+              {/* Time & Title Container */}
+              <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-zinc-900 border ${
+                isCompleted 
+                  ? 'border-emerald-200 dark:border-emerald-950/40 bg-emerald-50/20 dark:bg-emerald-950/10' 
+                  : 'border-gray-200 dark:border-darkBorder'
+              } p-4 rounded-2xl shadow-sm hover:shadow-md transition-all`}>
+                
+                <div className="flex items-start gap-3">
+                  {/* Interactive Checkbox Button */}
+                  <button
+                    onClick={() => onToggleStatus && onToggleStatus(actId, status)}
+                    className="mt-0.5 text-gray-300 hover:text-emerald-500 dark:text-zinc-600 dark:hover:text-emerald-400 transition-colors"
+                    title={isCompleted ? "Mark as Planned" : "Mark as Completed"}
+                  >
+                    {isCompleted ? (
+                      <CheckCircle2 size={20} className="text-emerald-500 fill-emerald-100 dark:fill-emerald-950" />
+                    ) : (
+                      <Circle size={20} />
+                    )}
+                  </button>
+
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-extrabold text-indigo-600 dark:text-brand-400 tracking-wider">
+                        {time}
+                      </span>
+                      {type.toUpperCase() === 'HOTEL' && (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <ShieldCheck size={11} /> 9.8 Safety Score
+                        </span>
+                      )}
+                      {type.toUpperCase() === 'RESTAURANT' && (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Star size={11} className="fill-amber-400 text-amber-400" /> 4.9★ Top Rated
+                        </span>
+                      )}
+                    </div>
+                    <h4 className={`font-bold text-sm ${
+                      isCompleted 
+                        ? 'line-through text-gray-400 dark:text-gray-500' 
+                        : 'text-gray-800 dark:text-gray-100'
+                    }`}>
+                      {name}
+                    </h4>
+                    <span className="text-[9px] uppercase font-extrabold tracking-wider text-gray-400">
+                      {type.toLowerCase()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 items-center self-end sm:self-center">
+                  <button
+                    onClick={() => onToggleStatus && onToggleStatus(actId, status)}
+                    className={`text-[10px] font-extrabold px-3 py-1.5 rounded-xl border transition-all ${
+                      isCompleted 
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-900' 
+                        : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-zinc-800 dark:text-indigo-300 dark:border-zinc-700 hover:bg-indigo-100'
+                    }`}
+                  >
+                    {isCompleted ? '✓ Completed' : 'Mark Done'}
+                  </button>
+                </div>
+
               </div>
             </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }

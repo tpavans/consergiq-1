@@ -13,8 +13,8 @@ export default function Profile() {
   const [subView, setSubView] = useState<'MENU' | 'PERSONAL_INFO' | 'PREFERENCES' | 'NOTIFICATIONS' | 'SETTINGS'>('MENU')
 
   // Personal Info Form State
-  const [fullName, setFullName] = useState(user?.fullName || 'Anusri Kommana')
-  const [email, setEmail] = useState(user?.email || 'anusri@example.com')
+  const [fullName, setFullName] = useState(user?.fullName || 'Guest Traveler')
+  const [email, setEmail] = useState(user?.email || 'guest@example.com')
   const [phone, setPhone] = useState('+91 98765 43210')
 
   // Travel Preferences State
@@ -31,6 +31,13 @@ export default function Profile() {
   const [themeMode, setThemeMode] = useState<'Light' | 'Dark'>('Light')
 
   const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    if (user) {
+      setFullName(user.fullName || 'Guest Traveler')
+      setEmail(user.email || 'guest@example.com')
+    }
+  }, [user])
 
   useEffect(() => {
     getPreferences()
@@ -72,6 +79,9 @@ export default function Profile() {
 
   const handleSavePersonalInfo = (e: React.FormEvent) => {
     e.preventDefault()
+    if (fullName) {
+      localStorage.setItem('userFullName', fullName)
+    }
     setMessage('Personal information updated successfully.')
     setSubView('MENU')
   }

@@ -50,6 +50,18 @@ public class TripService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
 
+        String status = dto.getStatus() != null ? dto.getStatus() : "ACTIVE";
+
+        if ("ACTIVE".equalsIgnoreCase(status)) {
+            List<Trip> activeTrips = tripRepository.findByUserId(userId);
+            for (Trip t : activeTrips) {
+                if ("ACTIVE".equalsIgnoreCase(t.getStatus())) {
+                    t.setStatus("ARCHIVED");
+                    tripRepository.save(t);
+                }
+            }
+        }
+
         Trip trip = Trip.builder()
                 .user(user)
                 .title(dto.getTitle())
@@ -58,6 +70,11 @@ public class TripService {
                 .endDate(dto.getEndDate())
                 .budgetLimit(dto.getBudgetLimit() != null ? dto.getBudgetLimit() : BigDecimal.ZERO)
                 .budgetSpent(BigDecimal.ZERO)
+                .status(status)
+                .travelDistance(dto.getTravelDistance())
+                .travelTime(dto.getTravelTime())
+                .googleMapsRoute(dto.getGoogleMapsRoute())
+                .polylineCoordinates(dto.getPolylineCoordinates())
                 .build();
 
         Trip saved = tripRepository.save(trip);
@@ -78,6 +95,32 @@ public class TripService {
         trip.setEndDate(dto.getEndDate());
         if (dto.getBudgetLimit() != null) {
             trip.setBudgetLimit(dto.getBudgetLimit());
+        }
+
+        if (dto.getStatus() != null) {
+            if ("ACTIVE".equalsIgnoreCase(dto.getStatus()) && !"ACTIVE".equalsIgnoreCase(trip.getStatus())) {
+                List<Trip> activeTrips = tripRepository.findByUserId(userId);
+                for (Trip t : activeTrips) {
+                    if ("ACTIVE".equalsIgnoreCase(t.getStatus()) && !t.getId().equals(tripId)) {
+                        t.setStatus("ARCHIVED");
+                        tripRepository.save(t);
+                    }
+                }
+            }
+            trip.setStatus(dto.getStatus());
+        }
+
+        if (dto.getTravelDistance() != null) {
+            trip.setTravelDistance(dto.getTravelDistance());
+        }
+        if (dto.getTravelTime() != null) {
+            trip.setTravelTime(dto.getTravelTime());
+        }
+        if (dto.getGoogleMapsRoute() != null) {
+            trip.setGoogleMapsRoute(dto.getGoogleMapsRoute());
+        }
+        if (dto.getPolylineCoordinates() != null) {
+            trip.setPolylineCoordinates(dto.getPolylineCoordinates());
         }
 
         Trip saved = tripRepository.save(trip);
@@ -134,6 +177,26 @@ public class TripService {
         scheduleRepository.delete(schedule);
     }
 
+    @Transactional
+    public ScheduleDto updateScheduleStatus(Long tripId, Long scheduleId, String status, Long userId) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trip not found: " + tripId));
+        if (!trip.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("Unauthorized");
+        }
+
+        Schedule schedule = scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Schedule item not found: " + scheduleId));
+
+        if (!schedule.getTrip().getId().equals(tripId)) {
+            throw new IllegalArgumentException("Schedule item does not belong to this trip");
+        }
+
+        schedule.setStatus(status);
+        Schedule saved = scheduleRepository.save(schedule);
+        return mapToScheduleDto(saved);
+    }
+
     private TripDto mapToTripDto(Trip trip) {
         List<ScheduleDto> schedules = scheduleRepository.findByTripIdOrderByDayNumberAscScheduledTimeAsc(trip.getId())
                 .stream()
@@ -148,6 +211,11 @@ public class TripService {
                 trip.getEndDate(),
                 trip.getBudgetLimit(),
                 trip.getBudgetSpent(),
+                trip.getStatus(),
+                trip.getTravelDistance(),
+                trip.getTravelTime(),
+                trip.getGoogleMapsRoute(),
+                trip.getPolylineCoordinates(),
                 schedules
         );
     }

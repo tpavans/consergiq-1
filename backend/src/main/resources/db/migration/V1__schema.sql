@@ -168,6 +168,11 @@ CREATE TABLE trips (
     end_date DATE NOT NULL,
     budget_limit DECIMAL(10, 2) NOT NULL DEFAULT 0.0,
     budget_spent DECIMAL(10, 2) NOT NULL DEFAULT 0.0,
+    status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
+    travel_distance VARCHAR(100),
+    travel_time VARCHAR(100),
+    google_maps_route TEXT,
+    polyline_coordinates TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

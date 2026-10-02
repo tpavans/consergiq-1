@@ -25,7 +25,6 @@ export default function Dashboard() {
           const cityOnly = latestTrip.destination.split(',')[0].trim()
           setActiveCity(cityOnly)
 
-          // Load first two schedules as upcoming preview
           if (latestTrip.schedules && latestTrip.schedules.length > 0) {
             const preview = latestTrip.schedules.slice(0, 2).map((s: any) => ({
               title: s.activityName,
@@ -34,15 +33,48 @@ export default function Dashboard() {
             }))
             setUpcomingBookings(preview)
           }
+        } else {
+          // Detect user's live geolocation if no active trip exists
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+              fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`)
+                .then((r) => r.json())
+                .then((data) => {
+                  if (data && data.address) {
+                    const place = data.address.village || data.address.town || data.address.suburb || data.address.city || data.address.county || 'Mulasthanam';
+                    const state = data.address.state || 'India';
+                    setActiveCity(place);
+                    setActiveDestination(`${place}, ${state}`);
+                  }
+                })
+                .catch(() => {});
+            });
+          }
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition((pos) => {
+            fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`)
+              .then((r) => r.json())
+              .then((data) => {
+                if (data && data.address) {
+                  const place = data.address.village || data.address.town || data.address.suburb || data.address.city || data.address.county || 'Mulasthanam';
+                  const state = data.address.state || 'India';
+                  setActiveCity(place);
+                  setActiveDestination(`${place}, ${state}`);
+                }
+              })
+              .catch(() => {});
+          });
+        }
+      })
   }, [])
 
   const highlights = [
-    { name: 'Baga Beach', time: '10:00 AM', rating: 4.8, img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80' },
-    { name: 'Spice Garden Walk', time: '02:00 PM', rating: 4.6, img: 'https://images.unsplash.com/photo-1599940824399-b87987ceb72a?auto=format&fit=crop&w=400&q=80' },
-    { name: 'Sunset Cruise', time: '06:30 PM', rating: 4.9, img: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=400&q=80' },
+    { name: `${activeCity} Local Sightseeing & Attractions`, time: '10:00 AM', rating: 4.8, img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80' },
+    { name: `Top Culinary Dining near ${activeCity}`, time: '02:00 PM', rating: 4.6, img: 'https://images.unsplash.com/photo-1599940824399-b87987ceb72a?auto=format&fit=crop&w=400&q=80' },
+    { name: `Scenic River & Nature Spot in ${activeCity}`, time: '06:30 PM', rating: 4.9, img: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=400&q=80' },
   ]
 
   return (

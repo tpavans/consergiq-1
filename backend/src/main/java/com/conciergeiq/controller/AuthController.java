@@ -133,6 +133,89 @@ public class AuthController {
                         "Refresh token is not in database!"));
     }
 
+    @PostMapping("/mobile-login")
+    public ResponseEntity<?> mobileLogin(@Valid @RequestBody MobileLoginRequest request) {
+        String cleanPhone = request.getPhone().replaceAll("[^0-9+]", "");
+        if (cleanPhone.isEmpty()) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Error: Invalid phone number"));
+        }
+
+        User user = userRepository.findByPhone(cleanPhone).orElseGet(() -> {
+            String generatedEmail = "user_" + cleanPhone.replaceAll("[^0-9]", "") + "@conciergeiq.com";
+            User newUser = User.builder()
+                    .email(generatedEmail)
+                    .password(encoder.encode("MobileAuthSecret123!"))
+                    .fullName("Guest (" + cleanPhone + ")")
+                    .phone(cleanPhone)
+                    .role(Role.GUEST)
+                    .build();
+            User saved = userRepository.save(newUser);
+            PreferenceProfile profile = PreferenceProfile.builder()
+                    .user(saved)
+                    .interests(new ArrayList<>())
+                    .foodPreferences(new ArrayList<>())
+                    .accommodationPreferences(new ArrayList<>())
+                    .budgetTier("MEDIUM")
+                    .mobilityLevel("STANDARD")
+                    .build();
+            preferenceProfileRepository.save(profile);
+            return saved;
+        });
+
+        String jwt = jwtUtils.generateTokenFromUsername(user.getEmail());
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+
+        return ResponseEntity.ok(new JwtResponse(
+                jwt,
+                refreshToken.getToken(),
+                user.getId(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getRole().name()
+        ));
+    }
+
+    @PostMapping("/google-login")
+    public ResponseEntity<?> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
+        if (email.isEmpty()) {
+            return ResponseEntity.badRequest().body(new MessageResponse("Error: Email is required"));
+        }
+
+        User user = userRepository.findByEmail(email).orElseGet(() -> {
+            String name = (request.getName() != null && !request.getName().isEmpty()) ? request.getName() : "Google User";
+            User newUser = User.builder()
+                    .email(email)
+                    .password(encoder.encode("GoogleAuthSecret123!"))
+                    .fullName(name)
+                    .role(Role.GUEST)
+                    .build();
+            User saved = userRepository.save(newUser);
+            PreferenceProfile profile = PreferenceProfile.builder()
+                    .user(saved)
+                    .interests(new ArrayList<>())
+                    .foodPreferences(new ArrayList<>())
+                    .accommodationPreferences(new ArrayList<>())
+                    .budgetTier("MEDIUM")
+                    .mobilityLevel("STANDARD")
+                    .build();
+            preferenceProfileRepository.save(profile);
+            return saved;
+        });
+
+        String jwt = jwtUtils.generateTokenFromUsername(user.getEmail());
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+
+        return ResponseEntity.ok(new JwtResponse(
+                jwt,
+                refreshToken.getToken(),
+                user.getId(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getRole().name()
+        ));
+    }
+
     @PostMapping("/logout")
     public ResponseEntity<?> logoutUser() {
         UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();

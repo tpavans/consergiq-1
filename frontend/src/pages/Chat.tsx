@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Send, Bot, CheckCircle, Navigation, Terminal, ChevronDown, ChevronUp } from 'lucide-react'
+import { Send, Bot, CheckCircle, Navigation, Phone, ExternalLink, ShieldAlert, Sparkles, MapPin, Clock } from 'lucide-react'
 import API from '../services/api'
 import Map from '../components/Map'
 
@@ -19,6 +19,14 @@ interface CardData {
   distance: string
   imageUrl: string
   type: string
+  reasoning?: string
+  address?: string
+  phone?: string
+  website?: string
+  openingHours?: string
+  googleMapsUrl?: string
+  lat?: number
+  lng?: number
 }
 
 interface ItineraryProposal {
@@ -33,6 +41,12 @@ interface ItineraryProposal {
     activityId?: number
     lat?: number
     lng?: number
+    reasoning?: string
+    address?: string
+    phone?: string
+    website?: string
+    openingHours?: string
+    googleMapsUrl?: string
   }[]
 }
 
@@ -45,7 +59,7 @@ export default function Chat() {
   const [agentLogs, setAgentLogs] = useState<string[]>([])
   const [showLogs, setShowLogs] = useState(true)
   const [bookingSuccess, setBookingSuccess] = useState('')
-  const [geolocatedCity, setGeolocatedCity] = useState('Rajahmundry')
+  const [geolocatedCity, setGeolocatedCity] = useState('Visakhapatnam')
   
   // Geolocation tracker
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -60,7 +74,7 @@ export default function Chat() {
           setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         },
         () => {
-          setUserCoords({ lat: 17.0005, lng: 81.8040 }) // Default near Rajahmundry (not Goa)
+          setUserCoords({ lat: 17.6868, lng: 83.2185 }) // Default near Visakhapatnam
         }
       )
     }
@@ -72,7 +86,7 @@ export default function Chat() {
         .then(res => res.json())
         .then(data => {
           if (data && data.address) {
-            const city = data.address.city || data.address.town || data.address.suburb || data.address.village || 'Rajahmundry';
+            const city = data.address.village || data.address.town || data.address.suburb || data.address.city || data.address.county || 'Visakhapatnam';
             setGeolocatedCity(city);
           }
         })
@@ -93,7 +107,7 @@ export default function Chat() {
           setMessages([
             {
               role: 'ASSISTANT',
-              message: "Hello! I am your ConciergeIQ travel orchestrator. Let me know what you'd like to do, or try asking:\n• 'plan dinner in ravulapalem budget 1000'\n• 'suggest movie theaters in Vizag'",
+              message: "Hello! I am ConciergeIQ, your AI Personal Travel Concierge. I am ready to build your customized travel itinerary. Where would you like to travel, what are your dates, budget, and preferences?",
             },
           ])
         }
@@ -102,7 +116,7 @@ export default function Chat() {
         setMessages([
           {
             role: 'ASSISTANT',
-            message: 'Hello! I am your ConciergeIQ travel orchestrator. How can I help you today?',
+            message: 'Hello! I am ConciergeIQ, your AI Personal Travel Concierge. How can I help you today?',
           },
         ])
       })
@@ -112,19 +126,16 @@ export default function Chat() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || loading) return
+  const sendMessageQuery = async (queryText: string) => {
+    if (!queryText.trim() || loading) return
 
-    const userMsg = input
-    setInput('')
-    setMessages((prev) => [...prev, { role: 'USER', message: userMsg }])
+    setMessages((prev) => [...prev, { role: 'USER', message: queryText }])
     setLoading(true)
     setBookingSuccess('')
     setAgentLogs([])
 
     try {
-      const res = await API.post('/chat', { message: userMsg, currentLocation: geolocatedCity })
+      const res = await API.post('/chat', { message: queryText, currentLocation: geolocatedCity })
       const data = res.data
 
       setMessages((prev) => [...prev, { role: 'ASSISTANT', message: data.responseMessage }])
@@ -137,6 +148,7 @@ export default function Chat() {
 
       if (data.proposedItinerary) {
         setProposal(data.proposedItinerary)
+        window.dispatchEvent(new CustomEvent('planUpdated', { detail: data.proposedItinerary }))
       } else {
         setProposal(null)
       }
@@ -154,11 +166,20 @@ export default function Chat() {
     }
   }
 
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim()) return
+    const text = input
+    setInput('')
+    await sendMessageQuery(text)
+  }
+
   const handleApprove = async () => {
     if (!proposal) return
     setLoading(true)
     try {
       await API.post('/chat/itinerary/approve', proposal)
+      window.dispatchEvent(new CustomEvent('planUpdated', { detail: proposal }))
       setBookingSuccess('Itinerary booked successfully! Bookings added to your timeline.')
       setProposal(null)
       setCards([])
@@ -174,31 +195,59 @@ export default function Chat() {
   }
 
   const getMapPins = () => {
-    if (!proposal || !proposal.activities) return []
-    return proposal.activities.map((act, i) => ({
-      id: act.activityId || i,
-      name: act.name,
-      lat: act.lat || 15.55,
-      lng: act.lng || 73.75,
-      type: (act.type || 'ATTRACTION') as any
-    }))
+    const pins: any[] = []
+    
+    if (proposal && proposal.activities) {
+      proposal.activities.forEach((act, i) => {
+        pins.push({
+          id: act.activityId || (i + 1),
+          name: act.name,
+          lat: act.lat || 17.6868,
+          lng: act.lng || 83.2185,
+          type: (act.type || 'ATTRACTION') as any
+        })
+      })
+    }
+
+    if (cards && cards.length > 0) {
+      cards.forEach((card, i) => {
+        if (card.lat && card.lng) {
+          pins.push({
+            id: card.id || (1000 + i),
+            name: card.title,
+            lat: card.lat,
+            lng: card.lng,
+            type: (card.type || 'HOTEL') as any
+          })
+        }
+      })
+    }
+
+    return pins
   }
 
   const getProposalLegs = () => {
     const legs: { from: string; to: string; distance: string; duration: string }[] = []
     const pins = getMapPins()
+    if (pins.length === 0) return legs
+
     let prevPoint: { name: string; lat: number; lng: number } | null = null
 
-    if (userCoords) {
-      prevPoint = { name: 'Your Location', lat: userCoords.lat, lng: userCoords.lng }
+    if (userCoords && pins.length > 0) {
+      const dLat = pins[0].lat - userCoords.lat
+      const dLng = pins[0].lng - userCoords.lng
+      const userDistKm = Math.sqrt(dLat * dLat + dLng * dLng) * 111.0
+      if (userDistKm < 50.0) {
+        prevPoint = { name: 'Your Location', lat: userCoords.lat, lng: userCoords.lng }
+      }
     }
 
     pins.forEach((pin) => {
       if (prevPoint) {
         const dLat = pin.lat - prevPoint.lat
         const dLng = pin.lng - prevPoint.lng
-        const distance = Math.sqrt(dLat * dLat + dLng * dLng) * 111
-        const durationMin = Math.round(distance * 2.5)
+        const distance = Math.sqrt(dLat * dLat + dLng * dLng) * 111.0
+        const durationMin = Math.max(3, Math.round(distance * 2.2))
         legs.push({
           from: prevPoint.name,
           to: pin.name,
@@ -213,6 +262,13 @@ export default function Chat() {
 
   const legs = getProposalLegs()
 
+  const quickPrompts = [
+    "Plan a 2-day family trip to Visakhapatnam budget 15000",
+    "Emergency hospital and doctor near me",
+    "Replace today's museum with beach",
+    "Rain expected today adjust itinerary"
+  ]
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -225,17 +281,27 @@ export default function Chat() {
       <div className="lg:col-span-7 flex flex-col bg-white dark:bg-zinc-900 border border-gray-200 dark:border-darkBorder rounded-2xl overflow-hidden shadow-sm h-full">
         
         {/* Active AI Status Header */}
-        <div className="border-b border-gray-200 dark:border-darkBorder p-4 bg-gray-50/50 dark:bg-zinc-900/50 flex items-center gap-3">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white">
-              <Bot size={20} />
+        <div className="border-b border-gray-200 dark:border-darkBorder p-4 bg-gray-50/50 dark:bg-zinc-900/50 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-md">
+                <Bot size={20} />
+              </div>
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border border-white dark:border-zinc-900 rounded-full"></span>
             </div>
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border border-white dark:border-zinc-900 rounded-full"></span>
+            <div>
+              <h3 className="font-bold text-sm">ConciergeIQ AI Assistant</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">7-Agent Cooperative Pipeline • Active in {geolocatedCity}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold text-sm">AI Concierge</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Online • Powered by LangGraph Multi-Agent Orchestrator</p>
-          </div>
+
+          <button
+            onClick={() => sendMessageQuery("Emergency medical hospital near me")}
+            className="bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
+          >
+            <ShieldAlert size={14} />
+            <span>Emergency SOS</span>
+          </button>
         </div>
 
         {/* Message History Feed */}
@@ -252,9 +318,9 @@ export default function Chat() {
               )}
               
               <div
-                className={`max-w-[75%] rounded-2xl p-4 text-sm ${
+                className={`max-w-[80%] rounded-2xl p-4 text-sm ${
                   msg.role === 'USER'
-                    ? 'bg-indigo-600 text-white rounded-tr-none'
+                    ? 'bg-indigo-600 text-white rounded-tr-none shadow-sm'
                     : 'bg-gray-100 dark:bg-zinc-800 text-gray-800 dark:text-gray-100 rounded-tl-none border border-gray-200/50 dark:border-zinc-700/50'
                 }`}
               >
@@ -269,39 +335,83 @@ export default function Chat() {
             </div>
           ))}
 
-          {/* Dynamic Recommendations Cards */}
+          {/* Dynamic Recommendations Cards with AI Selection Reasonings */}
           {cards.length > 0 && (
             <div className="pl-11 grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
               {cards.map((card) => (
-                <div key={card.id} className="bg-gray-50 dark:bg-zinc-850 border border-gray-200 dark:border-darkBorder rounded-xl overflow-hidden shadow-sm flex flex-col">
-                  <div className="h-28 overflow-hidden relative">
-                    <img src={card.imageUrl} alt={card.title} className="w-full h-full object-cover" />
-                    <span className="absolute top-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg capitalize">
-                      {card.type.toLowerCase()}
-                    </span>
-                  </div>
-                  <div className="p-3 flex flex-col gap-1">
-                    <h4 className="font-bold text-xs">{card.title}</h4>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2">{card.description}</p>
-                    <div className="flex justify-between items-center text-[10px] font-bold pt-2 mt-1 border-t border-gray-100 dark:border-zinc-700">
-                      <span>Rating: {card.rating}★</span>
-                      <span>{card.distance} away</span>
+                <div key={card.id} className="bg-gray-50 dark:bg-zinc-850 border border-gray-200 dark:border-darkBorder rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="h-28 overflow-hidden relative">
+                      <img src={card.imageUrl} alt={card.title} className="w-full h-full object-cover" />
+                      <span className="absolute top-2 right-2 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg capitalize">
+                        {card.type.toLowerCase()}
+                      </span>
                     </div>
+
+                    <div className="p-3.5 flex flex-col gap-2">
+                      <h4 className="font-bold text-xs">{card.title}</h4>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2">{card.description}</p>
+                      
+                      {/* AI Selection Reasoning Badge */}
+                      {card.reasoning && (
+                        <div className="bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-900/60 p-2 rounded-xl text-[10px] text-indigo-900 dark:text-indigo-200">
+                          <span className="font-bold flex items-center gap-1 text-[9px] uppercase text-indigo-600 dark:text-indigo-400">
+                            <Sparkles size={10} /> Why AI Selected This:
+                          </span>
+                          <p className="whitespace-pre-line mt-0.5 leading-tight">{card.reasoning}</p>
+                        </div>
+                      )}
+
+                      {/* Contact Details */}
+                      <div className="space-y-1 text-[10px] text-gray-500 dark:text-gray-400 pt-1">
+                        {card.address && (
+                          <div className="flex items-center gap-1">
+                            <MapPin size={10} className="shrink-0 text-indigo-500" />
+                            <span className="truncate">{card.address}</span>
+                          </div>
+                        )}
+                        {card.phone && (
+                          <div className="flex items-center gap-1">
+                            <Phone size={10} className="shrink-0 text-emerald-500" />
+                            <span>{card.phone}</span>
+                          </div>
+                        )}
+                        {card.openingHours && (
+                          <div className="flex items-center gap-1">
+                            <Clock size={10} className="shrink-0 text-amber-500" />
+                            <span>{card.openingHours}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 pt-0 flex justify-between items-center border-t border-gray-200/50 dark:border-zinc-700/50 mt-2">
+                    <span className="text-[10px] font-bold text-amber-500">{card.rating}★ ({card.distance})</span>
+                    {card.googleMapsUrl && (
+                      <a
+                        href={card.googleMapsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5"
+                      >
+                        <span>Maps</span>
+                        <ExternalLink size={10} />
+                      </a>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-
-
           {/* Proposal approval actions */}
           {proposal && (
             <div className="pl-11 mt-4">
               <div className="bg-indigo-50/50 dark:bg-brand-950/10 border border-indigo-200 dark:border-brand-900 rounded-2xl p-4 flex flex-col gap-3 max-w-xl">
                 <div>
-                  <h4 className="font-bold text-sm text-indigo-700 dark:text-brand-300">Ready to Book?</h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Approve this plan to automate bookings in {proposal.destination}</p>
+                  <h4 className="font-bold text-sm text-indigo-700 dark:text-brand-300">Ready to Book Itinerary?</h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Approve this plan to automate timeline bookings in {proposal.destination}</p>
                 </div>
                 <button
                   onClick={handleApprove}
@@ -316,7 +426,7 @@ export default function Chat() {
 
           {bookingSuccess && (
             <div className="pl-11 mt-2">
-              <div className="bg-green-150 border border-green-200 text-green-700 dark:bg-green-950/40 dark:text-green-300 dark:border-green-900 p-3 rounded-xl text-xs">
+              <div className="bg-emerald-950/40 border border-emerald-800 text-emerald-300 p-3 rounded-xl text-xs">
                 {bookingSuccess}
               </div>
             </div>
@@ -328,7 +438,7 @@ export default function Chat() {
                 <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce"></span>
                 <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce [animation-delay:0.2s]"></span>
                 <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce [animation-delay:0.4s]"></span>
-                <span>AI Concierge is typing...</span>
+                <span>AI Concierge multi-agents are orchestrating your request...</span>
               </div>
             </div>
           )}
@@ -336,14 +446,27 @@ export default function Chat() {
           <div ref={chatEndRef} />
         </div>
 
+        {/* Quick Requirement Chips */}
+        <div className="px-4 py-2 border-t border-gray-100 dark:border-zinc-800/80 bg-gray-50/50 dark:bg-zinc-900/50 flex gap-2 overflow-x-auto">
+          {quickPrompts.map((promptText, i) => (
+            <button
+              key={i}
+              onClick={() => sendMessageQuery(promptText)}
+              className="whitespace-nowrap text-[11px] bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 hover:border-indigo-500 px-3 py-1 rounded-xl text-gray-600 dark:text-gray-300 transition-colors shadow-2xs"
+            >
+              {promptText}
+            </button>
+          ))}
+        </div>
+
         {/* Input Box Footer */}
         <form onSubmit={handleSend} className="border-t border-gray-200 dark:border-darkBorder p-4 bg-white dark:bg-zinc-900 flex gap-2">
           <input
             type="text"
-            placeholder="Type your trip request (e.g. 'plan cinema evening in Vizag')"
+            placeholder="Type your trip request (e.g. 'plan 2 day family trip to Vizag budget 20000')"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="flex-1 bg-gray-50 dark:bg-zinc-800 border border-gray-200/80 dark:border-darkBorder rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500"
+            className="flex-1 bg-gray-50 dark:bg-zinc-800 border border-gray-200/80 dark:border-darkBorder rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 text-white"
           />
           <button
             type="submit"
@@ -360,7 +483,7 @@ export default function Chat() {
         <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-darkBorder rounded-2xl p-4 shadow-sm flex flex-col gap-3 flex-1 min-h-[300px]">
           <h3 className="font-bold text-sm flex items-center gap-1.5">
             <Navigation size={16} className="text-indigo-600 dark:text-brand-400" />
-            Live Map Tracking
+            Live Map Tracking & Route
           </h3>
           
           <div className="flex-1">
@@ -382,13 +505,20 @@ export default function Chat() {
             {/* Time to Time Activities */}
             <div className="relative border-l border-gray-200 dark:border-zinc-800 pl-4 ml-1 space-y-4">
               {proposal.activities.map((act, i) => (
-                <div key={i} className="relative text-xs">
+                <div key={i} className="relative text-xs flex flex-col gap-1">
                   <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-indigo-500 border border-white dark:border-zinc-900"></div>
                   <div>
                     <span className="font-bold text-indigo-600 dark:text-brand-400">{act.time}</span>
                     <h5 className="font-bold text-gray-800 dark:text-gray-200">{act.name}</h5>
-                    <span className="text-[9px] uppercase font-bold text-gray-450">{(act.type || 'ATTRACTION').toLowerCase()}</span>
+                    <span className="text-[9px] uppercase font-bold text-gray-400">{(act.type || 'ATTRACTION').toLowerCase()}</span>
                   </div>
+
+                  {/* Activity Reasoning */}
+                  {act.reasoning && (
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-800/80 p-2 rounded-lg border border-gray-100 dark:border-zinc-700/50">
+                      💡 {act.reasoning}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -396,7 +526,7 @@ export default function Chat() {
             {/* Travel leg times summary */}
             {legs.length > 0 && (
               <div className="border-t border-gray-100 dark:border-zinc-800 pt-3 space-y-2">
-                <h4 className="text-[10px] uppercase font-bold text-gray-400">Travel Steps</h4>
+                <h4 className="text-[10px] uppercase font-bold text-gray-400">Travel Route & Distance</h4>
                 {legs.map((leg, index) => (
                   <div key={index} className="flex justify-between items-center text-[10px] text-gray-500 dark:text-gray-400">
                     <span>{leg.from.split(' ')[0]} ➔ {leg.to.split(' ')[0]}</span>

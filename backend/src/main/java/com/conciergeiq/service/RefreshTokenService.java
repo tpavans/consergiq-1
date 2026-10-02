@@ -34,14 +34,19 @@ public class RefreshTokenService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         
-        // Remove old tokens
-        refreshTokenRepository.deleteByUser(user);
-
-        RefreshToken refreshToken = RefreshToken.builder()
-                .user(user)
-                .token(UUID.randomUUID().toString())
-                .expiryDate(Instant.now().plusMillis(refreshTokenDurationMs))
-                .build();
+        Optional<RefreshToken> existing = refreshTokenRepository.findByUser(user);
+        RefreshToken refreshToken;
+        if (existing.isPresent()) {
+            refreshToken = existing.get();
+            refreshToken.setToken(UUID.randomUUID().toString());
+            refreshToken.setExpiryDate(Instant.now().plusMillis(refreshTokenDurationMs));
+        } else {
+            refreshToken = RefreshToken.builder()
+                    .user(user)
+                    .token(UUID.randomUUID().toString())
+                    .expiryDate(Instant.now().plusMillis(refreshTokenDurationMs))
+                    .build();
+        }
 
         return refreshTokenRepository.save(refreshToken);
     }

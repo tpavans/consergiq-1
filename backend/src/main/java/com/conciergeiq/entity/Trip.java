@@ -48,6 +48,22 @@ public class Trip {
     @Builder.Default
     private BigDecimal budgetSpent = BigDecimal.ZERO;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private String status = "ACTIVE";
+
+    @Column(name = "travel_distance")
+    private String travelDistance;
+
+    @Column(name = "travel_time")
+    private String travelTime;
+
+    @Column(name = "google_maps_route", length = 2048)
+    private String googleMapsRoute;
+
+    @Column(name = "polyline_coordinates", length = 4096)
+    private String polylineCoordinates;
+
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Schedule> schedules = new ArrayList<>();

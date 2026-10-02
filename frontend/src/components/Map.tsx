@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { MapPin, Compass } from 'lucide-react'
+import { MapPin, Compass, Navigation, ExternalLink } from 'lucide-react'
 
-interface MapPinData {
+export interface MapPinData {
   id: number
   name: string
   lat: number
@@ -27,11 +27,11 @@ export default function Map({
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const markersRef = useRef<any[]>([])
-  const routePolylineRef = useRef<any>(null)
+  const polylinesRef = useRef<any[]>([])
   const tileLayerRef = useRef<any>(null)
   const [leafletLoaded, setLeafletLoaded] = useState(false)
   const [selectedPin, setSelectedPin] = useState<MapPinData | null>(null)
-  const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('satellite')
+  const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('roadmap')
 
   // Dynamically load Leaflet CDN files
   useEffect(() => {
@@ -77,16 +77,14 @@ export default function Map({
       attributionControl: false
     }).setView([centerLat, centerLng], 13)
 
-    // Load official Google Maps standard road or hybrid satellite tiles with API Key
-    const googleKey = (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY || '';
-    const lyrsCode = mapType === 'satellite' ? 'y' : 'm';
-    const tileUrl = googleKey 
-      ? `https://mt1.googleusercontent.com/vt/lyrs=${lyrsCode}&x={x}&y={y}&z={z}&key=${googleKey}`
-      : `https://mt1.googleusercontent.com/vt/lyrs=${lyrsCode}&x={x}&y={y}&z={z}`;
+    // Load working standard road or hybrid satellite tiles
+    const tileUrl = mapType === 'satellite' 
+      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
     const tileLayer = L.tileLayer(tileUrl, {
-      maxZoom: 20,
-      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map)
     tileLayerRef.current = tileLayer
 
@@ -107,11 +105,9 @@ export default function Map({
   // Dynamically switch tile layer URLs when mapType switches
   useEffect(() => {
     if (!tileLayerRef.current || !leafletLoaded) return
-    const googleKey = (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY || '';
-    const lyrsCode = mapType === 'satellite' ? 'y' : 'm';
-    const tileUrl = googleKey
-      ? `https://mt1.googleusercontent.com/vt/lyrs=${lyrsCode}&x={x}&y={y}&z={z}&key=${googleKey}`
-      : `https://mt1.googleusercontent.com/vt/lyrs=${lyrsCode}&x={x}&y={y}&z={z}`;
+    const tileUrl = mapType === 'satellite'
+      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
     tileLayerRef.current.setUrl(tileUrl);
   }, [mapType, leafletLoaded])
@@ -127,23 +123,24 @@ export default function Map({
     markersRef.current.forEach(marker => marker.remove())
     markersRef.current = []
 
-    if (routePolylineRef.current) {
-      routePolylineRef.current.remove()
-      routePolylineRef.current = null
-    }
+    polylinesRef.current.forEach(p => p.remove())
+    polylinesRef.current = []
 
     const bounds: any[] = []
 
     const createCustomIcon = (type: string, numberLabel?: number) => {
-      let color = '#3b82f6' // Blue (Google Maps Primary)
-      if (type === 'RESTAURANT') color = '#ef4444' // Red (Dining)
-      if (type === 'EVENT') color = '#a855f7' // Purple (Leisure/Events)
-      if (type === 'MALL' || type === 'CINEMA') color = '#eab308' // Gold (Shopping/Entertainment)
-      if (type === 'USER') color = '#10b981' // Green (Live location)
-      if (type === 'HOSPITAL') color = '#f43f5e' // Rose/Red (Medical Emergency)
+      let color = '#2563eb' // Blue (Google Maps Primary)
+      if (type === 'RESTAURANT') color = '#dc2626' // Red (Dining)
+      if (type === 'EVENT') color = '#9333ea' // Purple (Leisure/Events)
+      if (type === 'MALL' || type === 'CINEMA') color = '#d97706' // Amber (Entertainment)
+      if (type === 'USER') color = '#059669' // Emerald Green (Live location)
+      if (type === 'HOSPITAL') color = '#e11d48' // Rose (Medical Emergency)
+      if (type === 'HOTEL') color = '#4f46e5' // Indigo (Hotel & Stay)
 
       let iconSvg = '';
-      if (type === 'RESTAURANT') {
+      if (numberLabel) {
+        iconSvg = `<span style="color: white; font-weight: 800; font-size: 11px;">${numberLabel}</span>`;
+      } else if (type === 'RESTAURANT') {
         iconSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`;
       } else if (type === 'EVENT' || type === 'CINEMA') {
         iconSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>`;
@@ -158,9 +155,9 @@ export default function Map({
       }
 
       const html = `
-        <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;">
-          <div style="position: absolute; width: 100%; height: 100%; border-radius: 50%; background-color: ${color}; opacity: 0.15; transform: scale(1.4); animation: pulse 2s infinite;"></div>
-          <div style="position: absolute; width: 24px; height: 24px; border-radius: 50%; background-color: ${color}; border: 2.5px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.35);">
+        <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px;">
+          <div style="position: absolute; width: 100%; height: 100%; border-radius: 50%; background-color: ${color}; opacity: 0.2; transform: scale(1.3); animation: pulse 2s infinite;"></div>
+          <div style="position: absolute; width: 26px; height: 26px; border-radius: 50%; background-color: ${color}; border: 2.5px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(0,0,0,0.4);">
             ${iconSvg}
           </div>
         </div>
@@ -168,8 +165,8 @@ export default function Map({
       return L.divIcon({
         html,
         className: 'google-maps-marker-icon',
-        iconSize: [32, 32],
-        iconAnchor: [16, 16]
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
       })
     }
 
@@ -178,7 +175,7 @@ export default function Map({
       const userMarker = L.marker([userCoords.lat, userCoords.lng], {
         icon: createCustomIcon('USER')
       }).addTo(map)
-      userMarker.bindTooltip('Your Live Location', { permanent: false, direction: 'top' })
+      userMarker.bindTooltip('<b>Your Live Location</b>', { permanent: false, direction: 'top' })
       markersRef.current.push(userMarker)
       bounds.push([userCoords.lat, userCoords.lng])
     }
@@ -203,38 +200,89 @@ export default function Map({
       bounds.push([pin.lat, pin.lng])
     })
 
-    // Draw Google-style route tracing and midpoint drive time bubbles
-    if (drawRoute && pins.length > 0) {
-      const pathCoords: any[] = []
-      
-      if (userCoords) {
-        pathCoords.push([userCoords.lat, userCoords.lng])
+    // Plot Nearby Places Pins
+    nearbyPlaces.forEach((place) => {
+      const marker = L.marker([place.lat, place.lng], {
+        icon: createCustomIcon(place.type)
+      }).addTo(map)
+
+      marker.bindTooltip(`<b>${place.name}</b><br><span style="text-transform: capitalize; font-size: 10px; color: #6b7280;">Nearby ${place.type.toLowerCase()}</span>`, {
+        permanent: false,
+        direction: 'top'
+      })
+
+      marker.on('click', () => {
+        setSelectedPin(place)
+        if (onSelectPlace) onSelectPlace(place)
+      })
+
+      markersRef.current.push(marker)
+      bounds.push([place.lat, place.lng])
+    })
+
+    // Draw Google-style route polyline between itinerary pins
+    if (drawRoute && pins.length >= 1) {
+      const pathCoords: [number, number][] = []
+
+      // Check distance to user location: only prepend userCoords if user is nearby (< 50 km)
+      if (userCoords && pins.length > 0) {
+        const dLat = pins[0].lat - userCoords.lat
+        const dLng = pins[0].lng - userCoords.lng
+        const userDistKm = Math.sqrt(dLat * dLat + dLng * dLng) * 111.0
+        if (userDistKm < 50.0) {
+          pathCoords.push([userCoords.lat, userCoords.lng])
+        }
       }
-      
+
       pins.forEach(pin => {
         pathCoords.push([pin.lat, pin.lng])
       })
 
-      // Return back to user starting coordinates (Round-trip Closed Loop)
-      if (userCoords) {
-        pathCoords.push([userCoords.lat, userCoords.lng])
-      }
-
       if (pathCoords.length >= 2) {
         const isEmergency = pins.some(p => p.type === 'HOSPITAL');
-        const routeColor = isEmergency ? '#ef4444' : '#3b82f6';
+        const outerColor = isEmergency ? '#991b1b' : '#1e3a8a';
+        const innerColor = isEmergency ? '#ef4444' : '#2563eb';
 
-        // Draw routing line
-        const polyline = L.polyline(pathCoords, {
-          color: routeColor,
-          weight: 5,
-          opacity: 0.85,
-          lineJoin: 'round'
-        }).addTo(map)
-        
-        routePolylineRef.current = polyline
+        const drawSegmentPolyline = (coords: [number, number][]) => {
+          // Dual Polyline for authentic Google Maps polyline styling
+          const outerLine = L.polyline(coords, {
+            color: outerColor,
+            weight: 8,
+            opacity: 0.35,
+            lineJoin: 'round',
+            lineCap: 'round'
+          }).addTo(map)
 
-        // Calculate and add Google Maps drive time bubbles at the midpoint of each segment
+          const innerLine = L.polyline(coords, {
+            color: innerColor,
+            weight: 5,
+            opacity: 0.95,
+            lineJoin: 'round',
+            lineCap: 'round'
+          }).addTo(map)
+
+          polylinesRef.current.push(outerLine, innerLine)
+        }
+
+        // Query OpenStreetMap Routing Service (OSRM) for real street driving geometry
+        const osrmCoords = pathCoords.map(c => `${c[1]},${c[0]}`).join(';')
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`
+
+        fetch(osrmUrl)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.routes && data.routes[0] && data.routes[0].geometry) {
+              const streetCoords: [number, number][] = data.routes[0].geometry.coordinates.map((c: any) => [c[1], c[0]]);
+              drawSegmentPolyline(streetCoords);
+            } else {
+              drawSegmentPolyline(pathCoords);
+            }
+          })
+          .catch(() => {
+            drawSegmentPolyline(pathCoords);
+          });
+
+        // Add Google Maps drive-time duration bubbles at the midpoint of each segment
         for (let i = 0; i < pathCoords.length - 1; i++) {
           const p1 = pathCoords[i]
           const p2 = pathCoords[i + 1]
@@ -244,17 +292,17 @@ export default function Map({
           
           const dLat = p2[0] - p1[0]
           const dLng = p2[1] - p1[1]
-          const distance = Math.sqrt(dLat * dLat + dLng * dLng) * 111
-          const durationMin = Math.round(distance * 2.5) // realistic traffic timing multiplier
+          const distance = Math.sqrt(dLat * dLat + dLng * dLng) * 111.0
+          const durationMin = Math.max(3, Math.round(distance * 2.2))
 
           const labelIcon = L.divIcon({
-            html: `<div style="background-color: white; border: 1.5px solid #3b82f6; border-radius: 8px; padding: 3px 7px; font-size: 9px; font-weight: 800; color: #1e3a8a; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 4px;">
+            html: `<div style="background-color: white; border: 1.5px solid #2563eb; border-radius: 12px; padding: 3px 8px; font-size: 10px; font-weight: 800; color: #1e3a8a; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.25); display: flex; align-items: center; gap: 4px;">
                      <span>🚗</span>
-                     <span>${durationMin} min</span>
+                     <span>${durationMin} min (${distance.toFixed(1)} km)</span>
                    </div>`,
             className: 'route-duration-bubble',
-            iconSize: [50, 20],
-            iconAnchor: [25, 10]
+            iconSize: [80, 24],
+            iconAnchor: [40, 12]
           })
 
           const labelMarker = L.marker([midLat, midLng], { icon: labelIcon }).addTo(map)
@@ -263,7 +311,7 @@ export default function Map({
       }
     }
 
-    // Auto-fit coordinates bounds
+    // Auto-fit coordinates bounds nicely
     if (bounds.length > 0) {
       map.fitBounds(bounds, {
         padding: [60, 60],
@@ -274,17 +322,17 @@ export default function Map({
   }, [leafletLoaded, pins, userCoords, nearbyPlaces, drawRoute])
 
   return (
-    <div className="relative w-full h-full min-h-[300px] bg-slate-100 dark:bg-zinc-950 border border-gray-250 dark:border-darkBorder rounded-2xl overflow-hidden flex flex-col shadow-inner">
+    <div className="relative w-full h-full min-h-[320px] bg-slate-100 dark:bg-zinc-950 border border-gray-250 dark:border-darkBorder rounded-2xl overflow-hidden flex flex-col shadow-inner">
       
-      {/* Map Control Buttons */}
+      {/* Map Control Badge */}
       <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2">
-        <div className="bg-white/95 dark:bg-zinc-900/95 shadow-md px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-gray-200 dark:border-darkBorder">
+        <div className="bg-white/95 dark:bg-zinc-900/95 shadow-md px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-gray-200 dark:border-darkBorder">
           <Compass size={14} className="text-blue-500 animate-spin" />
-          <span className="text-gray-800 dark:text-gray-200">Google Maps Service</span>
+          <span className="text-gray-800 dark:text-gray-200">Google Maps Live Route</span>
         </div>
       </div>
 
-      {/* Map Type Toggle Control Overlay */}
+      {/* Map Type Toggle Overlay */}
       <div className="absolute top-4 right-4 z-[1000] flex bg-white/95 dark:bg-zinc-900/95 p-1 rounded-xl border border-gray-200 dark:border-darkBorder shadow-md">
         <button
           onClick={() => setMapType('roadmap')}
@@ -309,32 +357,34 @@ export default function Map({
       </div>
 
       {/* Map target div */}
-      <div ref={mapContainerRef} className="flex-1 w-full h-full min-h-[300px]" style={{ zIndex: 1 }} />
+      <div ref={mapContainerRef} className="flex-1 w-full h-full min-h-[320px]" style={{ zIndex: 1 }} />
 
-      {/* Selected Marker Drawer */}
+      {/* Selected Marker Details Drawer */}
       {selectedPin && (() => {
-        let distStr = '2.4 km'
-        let timeStr = '12 min'
+        let distStr = '1.8 km'
+        let timeStr = '8 min'
         if (userCoords) {
           const dLat = selectedPin.lat - userCoords.lat
           const dLng = selectedPin.lng - userCoords.lng
-          const distance = Math.sqrt(dLat * dLat + dLng * dLng) * 111
+          const distance = Math.sqrt(dLat * dLat + dLng * dLng) * 111.0
           distStr = `${distance.toFixed(1)} km`
-          timeStr = `${Math.round(distance * 2.5)} min`
+          timeStr = `${Math.max(2, Math.round(distance * 2.2))} min`
         }
+
+        const mapsDirectionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${selectedPin.lat},${selectedPin.lng}`
 
         return (
           <div className="absolute bottom-4 left-4 right-4 z-[1000] bg-white/95 dark:bg-zinc-900/95 border border-gray-200/80 dark:border-darkBorder shadow-xl rounded-2xl p-4 animate-slide-up flex flex-col gap-3">
             <div className="flex justify-between items-start">
               <div className="flex gap-3 items-center">
-                <div className="bg-blue-50 dark:bg-blue-950/20 p-2.5 rounded-xl text-blue-600">
+                <div className="bg-blue-50 dark:bg-blue-950/30 p-2.5 rounded-xl text-blue-600">
                   <MapPin size={18} />
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200">{selectedPin.name}</h4>
-                  <p className="text-[10px] text-gray-400 font-semibold uppercase">{selectedPin.type.toLowerCase()}</p>
-                  <p className="text-[11px] text-gray-500 mt-0.5">
-                    {timeStr} ({distStr})
+                  <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">{selectedPin.type.toLowerCase()}</p>
+                  <p className="text-[11px] text-indigo-600 dark:text-brand-400 font-bold mt-0.5">
+                    🚗 {timeStr} drive • {distStr} away
                   </p>
                 </div>
               </div>
@@ -346,9 +396,16 @@ export default function Map({
               </button>
             </div>
             
-            <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all">
-              Directions
-            </button>
+            <a 
+              href={mapsDirectionsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
+            >
+              <Navigation size={14} />
+              <span>Open Directions in Google Maps</span>
+              <ExternalLink size={12} />
+            </a>
           </div>
         )
       })()}

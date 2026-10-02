@@ -61,4 +61,12 @@ public class TripController {
         tripService.removeScheduleItem(tripId, scheduleId, getCurrentUserId());
         return ResponseEntity.ok(new MessageResponse("Schedule item removed successfully"));
     }
+
+    @PatchMapping("/{tripId}/schedules/{scheduleId}/status")
+    public ResponseEntity<ScheduleDto> updateScheduleStatus(
+            @PathVariable Long tripId, 
+            @PathVariable Long scheduleId, 
+            @RequestParam String status) {
+        return ResponseEntity.ok(tripService.updateScheduleStatus(tripId, scheduleId, status, getCurrentUserId()));
+    }
 }

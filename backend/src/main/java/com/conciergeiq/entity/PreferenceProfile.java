@@ -52,6 +52,26 @@ public class PreferenceProfile {
     @Builder.Default
     private String mobilityLevel = "STANDARD"; // STANDARD, REDUCED
 
+    @Column(name = "travel_style")
+    @Builder.Default
+    private String travelStyle = "FAMILY"; // SOLO, FAMILY, COUPLE, FRIENDS
+
+    @Column(name = "has_kids")
+    @Builder.Default
+    private Boolean hasKids = false;
+
+    @Column(name = "has_senior_citizens")
+    @Builder.Default
+    private Boolean hasSeniorCitizens = false;
+
+    @Column(name = "vehicle_type")
+    @Builder.Default
+    private String vehicleType = "PUBLIC_TRANSPORT"; // OWN_VEHICLE, CAB, PUBLIC_TRANSPORT
+
+    @Column(name = "traveler_count")
+    @Builder.Default
+    private Integer travelerCount = 2;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;

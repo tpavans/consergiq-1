@@ -21,5 +21,10 @@ public class TripDto {
     private LocalDate endDate;
     private BigDecimal budgetLimit;
     private BigDecimal budgetSpent;
+    private String status;
+    private String travelDistance;
+    private String travelTime;
+    private String googleMapsRoute;
+    private String polylineCoordinates;
     private List<ScheduleDto> schedules;
 }

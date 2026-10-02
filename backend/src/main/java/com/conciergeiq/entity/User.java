@@ -36,6 +36,10 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
+    @Column(name = "preferred_language")
+    @Builder.Default
+    private String preferredLanguage = "English";
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;

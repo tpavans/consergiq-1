@@ -57,7 +57,31 @@ export default function Explore() {
   }
 
   useEffect(() => {
-    fetchExploreData()
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`)
+            .then((res) => res.json())
+            .then((data) => {
+              if (data && data.address) {
+                const city = data.address.city || data.address.town || data.address.suburb || data.address.village || 'Visakhapatnam';
+                setCityQuery(city);
+                API.get(`/explore?city=${city}`)
+                  .then((res) => {
+                    setHotels(res.data.hotels || []);
+                    setRestaurants(res.data.restaurants || []);
+                    setEvents(res.data.events || []);
+                  })
+                  .catch(() => {});
+              }
+            })
+            .catch(() => { fetchExploreData(); });
+        },
+        () => { fetchExploreData(); }
+      );
+    } else {
+      fetchExploreData();
+    }
   }, [])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -145,9 +169,17 @@ export default function Explore() {
                     <div className="p-4 flex flex-col gap-2">
                       <h4 className="font-bold text-sm">{h.name}</h4>
                       <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                        <MapPin size={12} />
-                        {h.address}
+                        <MapPin size={12} className="text-indigo-500 shrink-0" />
+                        <span className="truncate">{h.address}</span>
                       </p>
+                      <a 
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.name + ' ' + cityQuery)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 w-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 hover:bg-blue-100 transition-colors"
+                      >
+                        <span>Open in Google Maps</span>
+                      </a>
                     </div>
                   </div>
                 ))}

@@ -33,6 +33,14 @@ public class ChatResponseDto {
         private String distance;
         private String imageUrl;
         private String type; // 'RESTAURANT', 'HOTEL', 'EVENT', 'ATTRACTION'
+        private String reasoning;
+        private String address;
+        private String phone;
+        private String website;
+        private String openingHours;
+        private String googleMapsUrl;
+        private Double lat;
+        private Double lng;
     }
 
     @Getter
@@ -41,11 +49,25 @@ public class ChatResponseDto {
     @AllArgsConstructor
     @Builder
     public static class ItineraryProposalDto {
+        private Long tripId;
         private String title;
         private String destination;
         private String startDate;
         private String endDate;
         private List<ProposedActivity> activities;
+        private String currentLocation;
+        private Double latitude;
+        private Double longitude;
+        private String budget;
+        private String travelDistance;
+        private String travelTime;
+        private String weather;
+        private List<RecommendationCard> hotels;
+        private List<RecommendationCard> restaurants;
+        private List<RecommendationCard> events;
+        private List<RecommendationCard> nearbyPlaces;
+        private String googleMapsRoute;
+        private String polylineCoordinates;
     }
 
     @Getter
@@ -60,5 +82,11 @@ public class ChatResponseDto {
         private Long activityId;
         private Double lat;
         private Double lng;
+        private String reasoning;
+        private String address;
+        private String phone;
+        private String website;
+        private String openingHours;
+        private String googleMapsUrl;
     }
 }

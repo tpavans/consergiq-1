@@ -81,11 +81,53 @@ export function useAuth() {
     return res.data
   }
 
+  const mobileLogin = async (phone: string, otp?: string) => {
+    setLoading(true)
+    try {
+      const res = await API.post('/auth/mobile-login', { phone, otp })
+      const data = res.data
+
+      localStorage.setItem('accessToken', data.token)
+      localStorage.setItem('refreshToken', data.refreshToken)
+      localStorage.setItem('userId', String(data.id))
+      localStorage.setItem('userEmail', data.email)
+      localStorage.setItem('userFullName', data.fullName)
+      localStorage.setItem('userRole', data.role)
+
+      setUser(data)
+      return data
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const googleLogin = async (email: string, name?: string, googleToken?: string) => {
+    setLoading(true)
+    try {
+      const res = await API.post('/auth/google-login', { email, name, googleToken })
+      const data = res.data
+
+      localStorage.setItem('accessToken', data.token)
+      localStorage.setItem('refreshToken', data.refreshToken)
+      localStorage.setItem('userId', String(data.id))
+      localStorage.setItem('userEmail', data.email)
+      localStorage.setItem('userFullName', data.fullName)
+      localStorage.setItem('userRole', data.role)
+
+      setUser(data)
+      return data
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return {
     user,
     isAuthenticated: !!user,
     loading,
     login,
+    mobileLogin,
+    googleLogin,
     signup,
     logout,
     updatePreferences,
