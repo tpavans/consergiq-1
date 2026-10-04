@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+const BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:8000/api'
+
 const API = axios.create({
-  baseURL: 'http://localhost:8090/api',
+  baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -19,7 +21,7 @@ API.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-// Handle automatic token refresh when receiving 401 Unauthorized
+// Handle response errors gracefully
 API.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -29,13 +31,12 @@ API.interceptors.response.use(
       const refreshToken = localStorage.getItem('refreshToken')
       if (refreshToken) {
         try {
-          const res = await axios.post('http://localhost:8090/api/auth/refreshtoken', { refreshToken })
+          const res = await axios.post(`${BASE_URL}/auth/refreshtoken`, { refreshToken })
           const newAccessToken = res.data.accessToken
           localStorage.setItem('accessToken', newAccessToken)
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
           return API(originalRequest)
         } catch (refreshError) {
-          // Refresh token expired or invalid; sign out user
           localStorage.clear()
           window.location.href = '/login'
           return Promise.reject(refreshError)

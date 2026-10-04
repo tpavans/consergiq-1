@@ -523,16 +523,32 @@ export default function Chat() {
               ))}
             </div>
 
-            {/* Travel leg times summary */}
+            {/* Step-by-Step Turn-by-Turn Driving Directions Panel */}
             {legs.length > 0 && (
-              <div className="border-t border-gray-100 dark:border-zinc-800 pt-3 space-y-2">
-                <h4 className="text-[10px] uppercase font-bold text-gray-400">Travel Route & Distance</h4>
-                {legs.map((leg, index) => (
-                  <div key={index} className="flex justify-between items-center text-[10px] text-gray-500 dark:text-gray-400">
-                    <span>{leg.from.split(' ')[0]} ➔ {leg.to.split(' ')[0]}</span>
-                    <span className="font-bold text-indigo-600 dark:text-brand-450">{leg.distance} ({leg.duration})</span>
-                  </div>
-                ))}
+              <div className="bg-indigo-50/60 dark:bg-zinc-800/80 border border-indigo-100 dark:border-zinc-700/60 rounded-xl p-3 space-y-2">
+                <h4 className="text-xs font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5 uppercase tracking-wider">
+                  <Navigation size={13} className="text-indigo-600 dark:text-indigo-400" />
+                  Turn-by-Turn Driving Directions Summary
+                </h4>
+                <div className="space-y-1.5 pt-1">
+                  {legs.map((leg, index) => (
+                    <div key={index} className="flex justify-between items-center text-xs bg-white dark:bg-zinc-900 p-2.5 rounded-xl border border-gray-150 dark:border-zinc-800">
+                      <div className="flex items-center gap-2 max-w-[70%]">
+                        <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0">
+                          {index + 1}
+                        </span>
+                        <div className="truncate text-[11px]">
+                          <span className="font-bold text-gray-800 dark:text-gray-200">{leg.from}</span>
+                          <span className="text-gray-400 font-normal"> ➔ </span>
+                          <span className="font-semibold text-gray-700 dark:text-gray-300">{leg.to}</span>
+                        </div>
+                      </div>
+                      <span className="font-extrabold text-indigo-600 dark:text-brand-400 text-[11px] shrink-0">
+                        {leg.distance} ({leg.duration})
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
