@@ -24,8 +24,12 @@ class InputProcessingAgent:
         is_rainy = self._check_live_weather(extracted_city)
         state["is_rainy"] = is_rainy
 
+        # 4. Parse time horizon ("today" vs "tomorrow")
+        time_horizon = self._parse_time_horizon(query)
+        state["time_horizon"] = time_horizon
+
         state["logs"].append(
-            f"[InputProcessingAgent] Result -> City: '{extracted_city}', Budget: ₹{extracted_budget}, Rain Alert: {is_rainy}"
+            f"[InputProcessingAgent] Result -> City: '{extracted_city}', Budget: ₹{extracted_budget}, Rain Alert: {is_rainy}, Time Horizon: {time_horizon}"
         )
         return state
 
@@ -71,3 +75,10 @@ class InputProcessingAgent:
         except Exception:
             pass
         return False
+
+    def _parse_time_horizon(self, query: str) -> str:
+        if any(w in query for w in ["today", "now", "tonight", "this evening", "this afternoon"]):
+            return "TODAY"
+        elif any(w in query for w in ["tomorrow", "next day"]):
+            return "TOMORROW"
+        return "FULL_DAY"
